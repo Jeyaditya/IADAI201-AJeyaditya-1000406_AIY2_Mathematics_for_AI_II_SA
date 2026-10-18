@@ -1,263 +1,295 @@
-# IADAI201-AJeyaditya-1000406_AIY2_Mathematics_for_AI_II_SA
-
 # 🏥 Hospital Inpatient Discharges Dashboard
 
-**MediScope Health Analytics · Healthcare AI & Data Insights Team**
-Course: *Mathematics for AI-II* · CRS: *Artificial Intelligence* · Summative Assessment (Scenario 2)
+*Turning a mountain of hospital discharge records into answers that hospital administrators can act on.*
+
+### 👉 [Open the live dashboard](https://iadai201-ajeyaditya-1000406-aiy2-mathematics-for-ai-ii-sa.streamlit.app/)
 
 | | |
 | --- | --- |
-| **Live web app** | 👉 **[PASTE YOUR STREAMLIT CLOUD LINK HERE]** |
-| **Student** | A Jeyaditya · 1000406 · [Candidate registration number] |
-| **School** | [School name] |
+| **Student** | A Jeyaditya |
+| **Registration number** | 1000406 |
+| **School** | Jain Vidyalaya |
+| **CRS** | Artificial Intelligence |
+| **Course** | Mathematics for AI-II |
+| **CRS Facilitator** | Syed Ali Beema |
+| **Assessment** | Summative Assessment, Scenario 2: Hospital Inpatient Discharges Dashboard |
 
 ![Dashboard overview](screenshots/01_dashboard.png)
 
 ---
 
-## 1. Project overview
+## 1. Why I built this
 
-Hospital administrators need to know **where patients stay longest, which cases drive cost, and where to focus
-limited beds, staff and budget**. This project turns a hospital inpatient discharge dataset into an interactive
-Streamlit dashboard that answers those questions for non-technical decision makers.
+Imagine you run operations at a busy hospital. Every discharge leaves behind a record: how long the patient stayed,
+how sick they were, who paid, and what the hospital billed. Across a whole state, that adds up to millions of rows,
+far too many to read, but full of answers to questions that matter:
 
-**What the dashboard analyses**
+- Which conditions keep patients in bed the longest?
+- What really drives the cost of a stay?
+- Do some counties or hospitals look very different from the rest?
 
-- How long patients stay, by diagnosis, county, facility, age group and severity
-- What hospitals bill (total charges) and how that varies by severity, age, gender and payer
-- Which facilities use the most bed-days (high-utilisation facilities) and how concentrated resource use is
-- How strongly stay length and cost are linked (correlation and statistical tests)
+In this project I play a data analyst at the fictional **MediScope Health Analytics**. My job was to take a real-world
+style discharge dataset and build an interactive dashboard that a hospital administrator, clinician or operations
+manager can use **without writing a line of code**.
 
-**Target users:** hospital administrators, clinicians and operations managers.
+---
 
-### Key features
+## 2. What you can do with the dashboard
 
-- ✅ **5 required interactive Plotly charts** (bar, box plot, heat-map, pie, histogram) plus 7+ deep-dive charts
-- ✅ **Global sidebar filters** (year, service area, county, facility, age, gender, severity, payer, admission type, stay range, outlier toggle) that update every chart, KPI and finding
-- ✅ **Live KPI strip:** discharges, bed-days, average stay, average/total charges, long-stay share
-- ✅ **Research-question tab** with plain-English answers **computed from the current filters**
-- ✅ **Deep-dive EDA:** distribution statistics, log-log scatter with fit, Spearman correlation, Kruskal-Wallis test, pivot tables
-- ✅ **Transparent data cleaning:** a step-by-step audit table (rows in / out) is shown inside the app
-- ✅ **Robust loading:** schema-aware column detection, a column-mapping fallback for uploads, chunked cleaning for very large files
-- ✅ **Automated tests** for the cleaning and analysis code
+The app has six tabs:
+
+| Tab | What it gives you |
+| --- | --- |
+| 📊 **Dashboard** | The five core charts (bar, box plot, heat-map, pie, histogram), headline KPIs and auto-generated findings |
+| 📈 **Secondary statistics** | 11 further charts: admission types, discharge destinations, severity vs. mortality risk, a charges treemap, charges vs. costs by payer, cost concentration and more |
+| ❓ **Research questions** | Plain-English answers to six business questions, **recalculated live** from whatever filters you choose |
+| 🔬 **Deep dive (EDA)** | Distribution statistics, correlation and significance tests, pivot tables and trends |
+| 🧹 **Data & cleaning** | A step-by-step audit of how the raw data was cleaned (rows in, rows out) and a data dictionary |
+| ℹ️ **About** | How to use the app, method notes and limitations |
+
+A sidebar of filters (year, service area, county, facility, age, gender, severity, payer, admission type, length of stay,
+and an outlier switch) controls **every** chart, KPI and written finding at once.
 
 ### Screenshots
 
-| Dashboard | Research questions | Deep dive |
+| Dashboard | Secondary statistics | Research questions |
 | --- | --- | --- |
-| ![](screenshots/01_dashboard.png) | ![](screenshots/02_research.png) | ![](screenshots/03_deep_dive.png) |
+| ![](screenshots/01_dashboard.png) | ![](screenshots/02_secondary.png) | ![](screenshots/03_research.png) |
 
-| Heat-map | Data & cleaning |
+| Heat-map | Deep dive | Data & cleaning |
+| --- | --- | --- |
+| ![](screenshots/04_heatmap.png) | ![](screenshots/05_deep_dive.png) | ![](screenshots/06_data_cleaning.png) |
+
+---
+
+## 3. Step 1: Understanding the problem
+
+### The data
+The dataset is a de-identified hospital inpatient discharge file in the layout of New York State's **SPARCS**
+(Statewide Planning and Research Cooperative System). Each row is one discharge:
+
+| Group | Fields used |
 | --- | --- |
-| ![](screenshots/04_heatmap.png) | ![](screenshots/05_data_cleaning.png) |
+| Patient | Age group, gender, race, ethnicity |
+| Clinical | CCSR diagnosis code and description, APR severity of illness, risk of mortality, medical/surgical |
+| Stay | Length of stay, type of admission, patient disposition, discharge year |
+| Money | Total charges, total costs, primary payment type |
+| Place | Hospital service area, county, facility |
 
----
+### What I learned before writing any code
+- **Length of stay** is the everyday measure of hospital efficiency. It decides bed availability, staffing and cost.
+  It is also heavily skewed, because a few very long stays pull the average up, so I report medians and percentiles
+  alongside means.
+- **Severity of illness** (the APR-DRG scale: Minor → Extreme) is how hospitals fairly compare patients. Comparing
+  costs without it is misleading.
+- **Charges are not costs.** Charges are what a hospital bills; costs estimate what care actually consumed. I show both,
+  plus the cost-to-charge ratio.
+- **CCSR codes** (AHRQ's refined diagnosis categories, such as `CIR019`) group thousands of diagnoses into meaningful
+  families. The three-letter prefix tells you the body system, which I use to build readable clinical categories.
+- Healthcare spending tends to be **concentrated**: a small share of patients and facilities account for a large share of
+  the bill. So I measure concentration directly.
 
-## 2. Step 1 - Understanding the problem & research
+### The six questions I set out to answer
 
-### Dataset
-The project uses the *Hospital Inpatient Discharges* dataset provided in the assessment (`data/raw_sparcs.csv`; the layout follows the
-New York State **SPARCS** de-identified discharge file). Each row is one hospital discharge with:
-
-| Group | Fields |
-| --- | --- |
-| Demographics | Age Group, Gender, Race, Ethnicity |
-| Clinical | CCSR Diagnosis Code & Description, APR DRG, APR MDC, **APR Severity of Illness**, Risk of Mortality, Medical/Surgical |
-| Stay | **Length of Stay**, Type of Admission, Patient Disposition, Discharge Year |
-| Financial | **Total Charges**, Total Costs, Payment Typology (payer) |
-| Facility | Hospital Service Area, Hospital County, Facility Name |
-
-### Background research (what administrators look at)
-- **Length of stay (LOS)** is the standard operational efficiency measure: it determines bed occupancy, staffing
-  and the cost of each episode. LOS distributions are right-skewed, so medians and percentiles matter as much as means.
-- **Severity of illness (APR-DRG)** is the accepted risk-adjustment scale (Minor → Extreme). Comparing hospitals,
-  departments or payers without adjusting for severity and age is misleading.
-- **Charges ≠ costs.** Charges are list prices billed; costs estimate resources used. The *cost-to-charge ratio* is
-  therefore reported by payer.
-- **CCSR (Clinical Classifications Software Refined)** from AHRQ's HCUP collapses thousands of ICD-10 codes into clinically
-  meaningful diagnosis categories (codes like `CIR019`; the 3-letter prefix is the body system) - used here to build
-  readable labels and broad clinical groups.
-- Healthcare resource use is typically **concentrated** (a few facilities and a small share of expensive cases
-  account for a large share of cost), so the dashboard explicitly measures concentration.
-
-### Five+ business questions
-
-| # | Question | Where answered |
+| # | Question | Where to find the answer |
 | --- | --- | --- |
-| Q1 | Which diagnosis codes are linked to long stays? | Chart 1, Research tab |
-| Q2 | Which age groups incur the highest charges? | Deep dive (age × gender), Research tab |
-| Q3 | How does patient severity affect total cost? | Chart 2, Deep dive, Research tab |
-| Q4 | Are there counties with longer average stays? | Chart 3, Deep dive, Research tab |
-| Q5 | How do different payment types affect the final billing? | Chart 4, Pivot tables, Research tab |
-| Q6 | Which facilities show the highest utilisation (bed-days)? | Deep dive, Research tab |
+| Q1 | Which diagnoses are linked to long stays? | Chart 1 · Research tab |
+| Q2 | Which age groups incur the highest charges? | Deep dive · Research tab |
+| Q3 | How does patient severity affect total cost? | Chart 2 · Deep dive · Research tab |
+| Q4 | Are there counties with longer average stays? | Chart 3 · Deep dive · Research tab |
+| Q5 | How do payment types affect the final billing? | Chart 4 · Secondary statistics · Research tab |
+| Q6 | Which facilities show the highest utilisation? | Deep dive · Research tab |
 
 ---
 
-## 3. Step 2 - Data preprocessing & cleaning
+## 4. Step 2: Cleaning the data
 
-All logic lives in [`src/processing.py`](src/processing.py) (modular, commented, Streamlit-free) and is run once on
-the full file by [`prepare_data.py`](prepare_data.py).
+Real data is messy, and this file was no exception. All of the logic lives in [`src/processing.py`](src/processing.py)
+(modular and commented), and the app shows the row counts for every step in its **Data & cleaning** tab.
 
-| # | Step | Detail |
+| # | What I did | Why |
 | --- | --- | --- |
-| 1 | Load with pandas | Auto-detects delimiter/encoding; reads as text, only the needed columns, in chunks; keeps a uniform random sample of ~500k valid rows (`MAX_ROWS`) |
-| 2 | Convert types | `"$12,345.60"` → `12345.6`; `"120 +"` → `120`; year → numeric |
-| 3 | Remove invalid records | Missing / zero / **negative stay duration**; missing / non-positive charges |
-| 4 | Standardise categories | Trim whitespace; `M/F/U` → Male/Female/Unknown; ordered age groups and severity; `N/A`/blank → *Unknown* |
-| 5 | Drop irrelevant / null-heavy columns | e.g. **Birth Weight** (almost entirely 0/blank) |
-| 6 | Map diagnosis codes | `dx_label` = "CCSR code - description"; `dx_category` = body system from the code prefix |
-| 7 | Feature engineering | `charge_per_day`, `cost_per_day`, `cost_to_charge`, `los_band`, `long_stay` (> 7 days) |
-| 8 | Outliers | Far-out Tukey fences (3×IQR) on log-scale stay and charges → `is_outlier` flag (excluded by default, toggle in sidebar) |
+| 1 | Read the file in chunks, detecting the delimiter and encoding automatically | The raw file is far too large to load in one go |
+| 2 | Converted `"$12,345.60"` to a number and `"120 +"` to `120` | Charges and top-coded stays arrive as text |
+| 3 | Removed records with missing, zero or **negative** stay length, and with missing or non-positive charges | These are impossible values |
+| 4 | Standardised categories (M/F/U → Male/Female/Unknown, trimmed spaces, ordered age and severity levels, `N/A` → Unknown) | So groups don't split into near-duplicates |
+| 5 | Dropped irrelevant or mostly empty columns such as Birth Weight, IDs, and secondary payment fields | Keeps the data lean and meaningful |
+| 6 | Built readable diagnosis labels (`CIR019 - Heart failure`) and body-system categories from the CCSR code prefix | Raw codes are unreadable to administrators |
+| 7 | Engineered new features: charge per day, cost per day, cost-to-charge ratio, stay-length bands, long-stay flag (> 7 days) | Richer analysis than the raw columns allow |
+| 8 | Flagged extreme outliers (3×IQR on the log scale) for stay and charges | Excluded by default; one tick-box in the sidebar brings them back |
 
-Row counts for every step are written to `data/cleaning_report.json` and displayed in the app
-(*Data & cleaning* tab). Identical rows are intentionally **not** de-duplicated: the data are de-identified and
-genuine repeats exist.
+I deliberately did **not** drop duplicate rows: the data is de-identified, so identical rows can be genuinely different
+patients.
+
+> **A note on size.** The raw file has millions of rows and is too large for GitHub (100 MB per file) and for a free
+> hosting server's memory. The app therefore works on a **uniform random sample of about 500,000 valid rows**. At that
+> size the group averages and distributions are statistically indistinguishable from the full file. The exact row
+> counts are shown in the *Data & cleaning* tab.
 
 ---
 
-## 4. Step 3 - Exploratory data analysis
+## 5. Step 3: What the analysis looks at
 
-Implemented in [`src/analysis.py`](src/analysis.py) using `groupby().agg()` and `pivot_table()`:
+Implemented in [`src/analysis.py`](src/analysis.py) with `groupby().agg()` and `pivot_table()`:
 
-- Average / median stay and long-stay share per diagnosis (minimum-case threshold)
-- Total, mean and median charges by age group × gender
-- Charge multiple by severity vs. *Minor*; Spearman ρ between stay and charges; Kruskal-Wallis test
-- Average stay per county; high-utilisation facilities ranked by bed-days
+- Average and median stay, and share of stays over a week, for each diagnosis (with a minimum-case rule so tiny groups
+  don't distort rankings)
+- Total, mean and median charges by age group and gender
+- Charge multiple by severity compared with *Minor*, a Spearman rank correlation between stay and charges, and a
+  Kruskal-Wallis test (suited to skewed data)
+- County averages and facility utilisation ranked by **bed-days** (the sum of stay lengths)
 - Payer mix, billing level and cost-to-charge ratio
-- Pivot tables: region × payment type; age group × severity; facility × county
-- Distribution statistics (skewness, kurtosis, percentiles) and charge concentration (top-10% share)
+- Pivot tables: region × payment type, age group × severity, facility × county
+- Distribution statistics (skewness, percentiles) and how much of the total bill the top 10% of cases generate
 
 ### Key findings
 
-> ⚠️ **Fill this table after the app is running on your real data.** Open the **Research questions** tab with no
-> filters, and copy the numbers - they are computed live, so they are guaranteed to match the dashboard.
+> ✏️ **Fill in these numbers from the live app before submitting.** Open the **Research questions** tab with no filters
+> and copy the figures into the right-hand column. Then delete this note.
 
-| Question | Finding (from your data) |
+| Question | What the data shows |
 | --- | --- |
-| Q1 Long-stay diagnoses | [e.g. "Schizophrenia … averages X days, Y% of stays exceed 7 days"] |
-| Q2 Age & charges | [..] |
-| Q3 Severity & cost | [e.g. "Extreme cases cost X× Minor cases; ρ = …"] |
-| Q4 Counties | [..] |
-| Q5 Payment types | [..] |
-| Q6 Utilisation | [..] |
+| **Q1** Long-stay diagnoses | [Name the diagnosis with the longest average stay, its average days, and the % of its stays over 7 days] |
+| **Q2** Age and charges | [Which age group has the highest total charges, and which has the highest average bill] |
+| **Q3** Severity and cost | [How many times more *Extreme* cases cost than *Minor* ones; the Spearman ρ between stay and charges] |
+| **Q4** Counties | [County with the longest and shortest average stay, and the gap in days] |
+| **Q5** Payment types | [Largest payer by share; payer with the highest and lowest average charges] |
+| **Q6** Utilisation | [Facility with the most bed-days; share of bed-days in the top 3; share of charges from the top 10% of cases] |
+
+**What this means for administrators:** discharge planning should start early for the long-stay diagnoses; budgets and
+staffing should follow case mix (severity and age) rather than raw volume; unusually long county averages deserve a look at
+local post-acute capacity before judging hospitals; and the few facilities and cases that carry most of the bed-days and
+charges are the best place to focus improvement effort.
 
 ---
 
-## 5. Step 4 - Interactive visualisations
+## 6. Step 4: The visualisations
 
-| # | Chart (as required) | Type | Interactivity |
+**The five core charts**
+
+| # | Chart | Type | What you can do |
 | --- | --- | --- | --- |
-| 1 | Avg. hospital stay per diagnosis code | Horizontal bar | Top-N and minimum-case sliders, rich hover, colour = % long stays |
-| 2 | Total charges segmented by severity | Box plot | Log-scale toggle, mean marker |
-| 3 | Avg. stay by facility and county | Heat-map | 4 views, 2 metrics, row slider |
-| 4 | Distribution of patients by payment type | Donut / pie | Switch between patients and total charges |
-| 5 | Overall distribution of length of stay | Histogram | Range slider, log toggle, mean/median markers |
+| 1 | Average stay per diagnosis | Horizontal bar | Choose how many diagnoses and the minimum cases; bar colour tracks the stay length (hotter = longer) |
+| 2 | Total charges by severity | Box plot | Switch between log and linear scale; mean shown as a dashed line |
+| 3 | Average stay by facility and county | Heat-map | Four views, two metrics, adjustable number of rows |
+| 4 | Patients by payment type | Donut | Switch between share of patients and share of total charges |
+| 5 | Distribution of length of stay | Histogram | Cap the range, toggle log scale; mean and median marked |
 
-Extras in **Deep dive:** age × gender grouped bars, severity dual-axis chart, LOS-vs-charges log-log scatter with fit,
-county ranking, facility utilisation, two pivot-table heat-maps, yearly trend lines.
+**Beyond the five:** the *Secondary statistics* tab adds admission-type and discharge-destination charts, a
+stay-length-by-severity mix, a severity vs. mortality-risk heat-map, a treemap of charges by clinical category, charges
+vs. costs by payer, daily billing intensity, the top 10 diagnoses by total charges, a Lorenz-style concentration curve,
+stay length by age group, admission mix by age, and an age/gender sunburst. The *Deep dive* tab adds a log-log scatter with
+fitted trend line, county and facility rankings, pivot-table heat-maps and yearly trends.
 
-**Design choices:** one colour story (teal = volume/length, amber = money, crimson = risk), severity colours that
-run from calm to alarming, KPI strip always visible, filters in one place, every chart carries a plain-English
-caption.
+**Design choices.** One consistent colour story: teal for volume and length, amber for money, crimson and red for risk and
+long stays. A KPI strip stays visible on every tab, all filters live in one sidebar, and every chart has a short
+plain-English caption.
 
 ---
 
-## 6. Integration details
+## 7. How it all fits together
 
 ```
- data/raw_sparcs.csv ──► src/processing.py (first run: chunked cleaning) ──► data/inpatient_clean.csv.gz (cache)
-                                  ▲                                                   │
-                  prepare_data.py (optional CLI)                                      ▼
-                                                 app.py (filters, layout, UI) ──► src/analysis.py ──► Plotly charts
+data/raw_sparcs.csv ──► src/processing.py  (chunked cleaning, runs once)
+                              │
+                              ▼
+                data/inpatient_clean.csv.gz   ◄── cached clean data (what the deployed app reads)
+                              │
+                              ▼
+        app.py  (filters · layout · charts) ──► src/analysis.py  (groupby · pivot · statistics)
 ```
 
 | Component | Role |
 | --- | --- |
-| `src/processing.py` | Column detection, cleaning, feature engineering (shared by CLI, app and tests) |
-| `src/analysis.py` | Pure functions returning DataFrames / dicts for each analysis |
-| `src/demo_data.py` | Synthetic raw-format data for tests and a *clearly labelled* demo fallback |
-| `prepare_data.py` | Optional CLI to pre-build the cache with progress output |
-| `app.py` | Streamlit UI: data loading (`st.cache_data`), sidebar filters, KPI strip, tabs, Plotly charts |
-| `.streamlit/config.toml` | Theme and upload limit |
+| `app.py` | The Streamlit app: data loading with caching, sidebar filters, KPI strip, six tabs, all Plotly charts |
+| `src/processing.py` | Column detection, cleaning, feature engineering, chunked loading and caching |
+| `src/analysis.py` | Pure functions that turn the clean data into tables and statistics |
+| `src/demo_data.py` | Synthetic data for tests and a clearly-labelled demo fallback |
+| `prepare_data.py` | Optional command-line tool to build the cache with progress output |
+| `tests/test_pipeline.py` | 13 automated tests for the cleaning and analysis code |
+| `.streamlit/config.toml` | Theme and upload settings |
 
-Data loading order: sidebar upload → `data/raw_sparcs.csv` (cleaned once, cached) → cached `data/inpatient_clean.csv.gz`
-alone → demo data (with a visible warning), so the deployment never shows a blank page.
+The app looks for data in this order: a file you upload in the sidebar → `data/raw_sparcs.csv` (cleaned once, then
+cached) → the cached `data/inpatient_clean.csv.gz`. The deployed version uses the cached file, since the raw file is
+too big for GitHub. If no data is found at all, it shows a visible "Demo mode" banner rather than a blank page.
 
 ---
 
-## 7. Deployment instructions
+## 8. Run it yourself
 
-### Run locally
 ```bash
-git clone https://github.com/<your-username>/<your-repo>.git
-cd <your-repo>
-python -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
+git clone <this-repository-url>
+cd <repository-folder>
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
-# 1) put the dataset at data/raw_sparcs.csv  (the app cleans it automatically on first run)
-# 2) launch the dashboard
+# Optional: to rebuild from the raw data, place it at data/raw_sparcs.csv
 streamlit run app.py
-
-# optional: pre-build the cache with progress output, or change the sample size
-python prepare_data.py --max-rows 300000
-MAX_ROWS=0 streamlit run app.py     # use every row (local only)
 ```
 
-### Run the tests
-```bash
-python -m pytest -q        # or: python tests/test_pipeline.py
-```
+- The first start with a raw file cleans it in chunks (a few minutes for a very large file) and saves the cache.
+  Later starts take seconds.
+- To use **every** row locally: `MAX_ROWS=0 streamlit run app.py` (PowerShell: `$env:MAX_ROWS=0; streamlit run app.py`).
+- To pre-build the cache with progress shown: `python prepare_data.py`.
+- To run the tests: `python -m pytest -q` (or `python tests/test_pipeline.py`).
 
-### Deploy on Streamlit Community Cloud
-1. Run the app locally once so `data/inpatient_clean.csv.gz`, `cleaning_report.json` and `clean_meta.json` exist, then push
-   everything (including `data/raw_sparcs.csv`) to GitHub. The cached files are the safety net: if the server cannot read
-   the big raw file (e.g. a Git-LFS stub), the app uses the cache automatically.
-2. Go to <https://streamlit.io/cloud> → **Deploy an app** → connect GitHub.
-3. Select the repository, branch `main`, main file path `app.py`.
-4. Click **Deploy**. Streamlit installs `requirements.txt` automatically.
-5. Copy the live URL into this README (top of page) and into the submission document.
+### Deploying on Streamlit Community Cloud
+1. Make sure `data/inpatient_clean.csv.gz`, `data/cleaning_report.json` and `data/clean_meta.json` are in the repository
+   (the raw file stays on your computer).
+2. At [streamlit.io/cloud](https://streamlit.io/cloud), choose **Deploy an app**, select this repository and branch,
+   and set the main file to `app.py`.
+3. Click **Deploy**. Streamlit installs everything in `requirements.txt` automatically.
+4. After pushing new data files or code, use **Reboot app** from the app's menu.
 
 ---
 
-## 8. Repository structure
+## 9. Repository layout
 
 ```
 .
-├── app.py                      # Streamlit dashboard (main file)
-├── prepare_data.py             # optional raw → clean CLI
+├── app.py                       # the dashboard
+├── prepare_data.py              # optional: build the clean-data cache
 ├── requirements.txt
 ├── README.md
 ├── .streamlit/config.toml
 ├── src/
-│   ├── processing.py           # cleaning & feature engineering
-│   ├── analysis.py             # EDA / statistics
-│   └── demo_data.py            # synthetic fallback + test data
+│   ├── processing.py            # cleaning and feature engineering
+│   ├── analysis.py              # EDA and statistics
+│   └── demo_data.py             # synthetic fallback and test data
 ├── data/
-│   ├── raw_sparcs.csv          # raw dataset (input)
-│   ├── inpatient_clean.csv.gz  # auto-generated clean cache used by the app
-│   ├── cleaning_report.json
+│   ├── inpatient_clean.csv.gz   # cleaned cache used by the deployed app
+│   ├── cleaning_report.json     # row counts for every cleaning step
 │   ├── clean_meta.json
 │   └── README.md
 ├── tests/test_pipeline.py
-├── screenshots/                # images used in this README
-└── docs/
+├── screenshots/                 # images used in this README
+└── docs/research_notes.md       # background research and design decisions
 ```
 
 ---
 
-## 9. Limitations & ethics
-- Records are de-identified; no patient-level information is displayed.
-- Charges are billed amounts, not reimbursement or true cost.
-- Differences between payers, counties or facilities partly reflect case mix; they are associations, not causes.
-- Extreme outliers are excluded by default and can be re-included from the sidebar.
+## 10. Honest limitations
 
-## 10. References
-- NYS Department of Health - SPARCS (Statewide Planning and Research Cooperative System): <https://www.health.ny.gov/statistics/sparcs/>
-- AHRQ HCUP - Clinical Classifications Software Refined (CCSR): <https://hcup-us.ahrq.gov/toolssoftware/ccsr/ccs_refined.jsp>
-- Streamlit blog - *Improving healthcare management with Streamlit*: <https://blog.streamlit.io/improving-healthcare-management-with-streamlit/>
+- **De-identified data.** No patient-level information is shown anywhere.
+- **Charges are billed amounts**, not what insurers actually paid and not the true cost of care.
+- **Association is not causation.** Differences between payers, counties or facilities partly reflect case mix such as
+  age and severity.
+- **Sample-based.** Results come from a random sample of about 500,000 discharges (see the note in Step 2).
+- **Outliers.** Extreme records are excluded by default to keep averages meaningful; the sidebar switch includes them again.
+
+---
+
+## 11. References
+
+- NYS Department of Health, *SPARCS*: <https://www.health.ny.gov/statistics/sparcs/>
+- AHRQ HCUP, *Clinical Classifications Software Refined (CCSR)*: <https://hcup-us.ahrq.gov/toolssoftware/ccsr/ccs_refined.jsp>
+- Streamlit blog, *Improving healthcare management with Streamlit*: <https://blog.streamlit.io/improving-healthcare-management-with-streamlit/>
 - Plotly Express documentation: <https://plotly.com/python/plotly-express/>
-- Streamlit documentation (layouts, caching, state): <https://docs.streamlit.io/>
+- Streamlit documentation: <https://docs.streamlit.io/>
 - pandas documentation (`groupby`, `pivot_table`): <https://pandas.pydata.org/docs/>
 
 ---
-*Built by A Jeyaditya for Mathematics for AI-II · Summative Assessment.*
+
+*Built by **A Jeyaditya** (Reg. No. 1000406), Jain Vidyalaya · CRS Facilitator: Syed Ali Beema ·
+Mathematics for AI-II, Summative Assessment.*
