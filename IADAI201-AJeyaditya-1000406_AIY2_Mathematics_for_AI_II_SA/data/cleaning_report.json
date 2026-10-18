@@ -1,0 +1,72 @@
+[
+  {
+    "step": "Raw rows read",
+    "rows_before": 2101588,
+    "rows_after": 2101588,
+    "rows_removed": 0,
+    "note": "raw_sparcs.csv"
+  },
+  {
+    "step": "Select relevant columns",
+    "rows_before": 2101588,
+    "rows_after": 2101588,
+    "rows_removed": 0,
+    "note": "Kept 21 fields; dropped 0 unused/irrelevant (e.g. Birth Weight)."
+  },
+  {
+    "step": "Remove invalid length of stay",
+    "rows_before": 2101588,
+    "rows_after": 2101588,
+    "rows_removed": 0,
+    "note": "Missing, zero or negative stay durations are impossible and were removed."
+  },
+  {
+    "step": "Remove invalid charges",
+    "rows_before": 2101588,
+    "rows_after": 2101588,
+    "rows_removed": 0,
+    "note": "Missing, zero or negative total charges were removed."
+  },
+  {
+    "step": "Drop null-heavy optional columns",
+    "rows_before": 2101588,
+    "rows_after": 2101588,
+    "rows_removed": 0,
+    "note": "Dropped (>60% unknown): none."
+  },
+  {
+    "step": "Map diagnosis codes to readable labels",
+    "rows_before": 2101588,
+    "rows_after": 2101588,
+    "rows_removed": 0,
+    "note": "Built 'dx_label' (code - description) and 'dx_category' (broad clinical group)."
+  },
+  {
+    "step": "Random sample (size limit)",
+    "rows_before": 2101588,
+    "rows_after": 500000,
+    "rows_removed": 1601588,
+    "note": "Uniform random sample (max_rows=500,000, seed=42) to keep the app fast and memory-safe; group averages are statistically unchanged."
+  },
+  {
+    "step": "Flag statistical outliers",
+    "rows_before": 500000,
+    "rows_after": 500000,
+    "rows_removed": 0,
+    "note": "816 records flagged (3xIQR on log scale); kept in the file, excluded by default in the dashboard (toggle in sidebar)."
+  },
+  {
+    "step": "Engineer new features",
+    "rows_before": 500000,
+    "rows_after": 500000,
+    "rows_removed": 0,
+    "note": "charge_per_day, cost_per_day, cost_to_charge, los_band, long_stay (>7 days)."
+  },
+  {
+    "step": "Final dataset",
+    "rows_before": 500000,
+    "rows_after": 500000,
+    "rows_removed": 0,
+    "note": "500,000 rows x 31 columns"
+  }
+]
