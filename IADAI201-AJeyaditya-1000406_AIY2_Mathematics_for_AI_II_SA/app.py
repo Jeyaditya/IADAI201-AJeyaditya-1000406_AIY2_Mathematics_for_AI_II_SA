@@ -1,14 +1,6 @@
-"""
-MediScope Health Analytics - Hospital Inpatient Discharges Dashboard
-====================================================================
-Streamlit app for hospital administrators, clinicians and operations managers.
-
-Run locally:   streamlit run app.py
-Data:          data/inpatient_clean.csv.gz  (created by prepare_data.py)
-               -> falls back to an optional upload, then to clearly-labelled demo data.
-"""
 from __future__ import annotations
 
+import html
 import io
 import json
 import os
@@ -33,35 +25,87 @@ st.set_page_config(
 # --------------------------------------------------------------------------- #
 # Design tokens
 # --------------------------------------------------------------------------- #
-INK, TEAL, AMBER, CRIMSON, SLATE = "#10242F", "#0B7A75", "#D99A2B", "#B23A2B", "#5B7083"
-COLORWAY = [TEAL, AMBER, CRIMSON, SLATE, "#6C9BB8", "#8FBFAE", "#B9A27E", "#7C6A9C", "#C7D3DA"]
-SEV_COLORS = {"Minor": "#7FB7A4", "Moderate": "#E8B04A", "Major": "#D9703A",
-              "Extreme": "#A8281C", "Unknown": "#9AA7B0"}
-SCALE_TEAL = [[0, "#EAF4F2"], [0.5, "#4FA89F"], [1, "#0A4A57"]]
-SCALE_RISK = [[0, "#8FBFAE"], [0.5, "#E3A33B"], [1, "#B23A2B"]]
+INK, TEAL, AMBER, CRIMSON, SLATE = "#10242F", "#0B7A75", "#F0A32B", "#D1495B", "#5B7083"
+COLORWAY = [TEAL, AMBER, CRIMSON, "#3D5A80", "#6BBF9E", "#EE6C4D", "#8E7DBE", "#98C1D9", "#B5838D"]
+SEV_COLORS = {"Minor": "#6BBF9E", "Moderate": "#F0C050", "Major": "#EE7B3A",
+              "Extreme": "#B5232F", "Unknown": "#9AA7B0"}
+BAND_COLORS = ["#8FD3C1", "#3FA796", "#F0C050", "#EE7B3A", "#B5232F"]   # short stay -> very long stay
+AGE_COLORS = ["#8FD3C1", "#3FA796", "#0B7A75", "#F0A32B", "#D1495B"]
+SCALE_TEAL = [[0, "#F1F9F8"], [0.25, "#A6DDD4"], [0.55, "#2AA198"], [0.8, "#0B6E79"], [1, "#0A3F5C"]]
+SCALE_RISK = [[0, "#FFF1CC"], [0.3, "#F6C766"], [0.6, "#EE7B3A"], [0.82, "#C0392B"], [1, "#7A1B1B"]]  # short -> long = cool -> hot
 
 st.markdown(
     f"""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&display=swap');
 html, body, [class*="css"], .stMarkdown, .stTabs button {{ font-family: 'Public Sans', 'Segoe UI', sans-serif; }}
-.block-container {{ padding-top: 1.4rem; max-width: 1320px; }}
-h1, h2, h3 {{ color: {INK}; letter-spacing: -0.01em; }}
-.mx-title {{ font-size: 2.05rem; font-weight: 700; color: {INK}; line-height: 1.15; margin: 0; }}
-.mx-sub {{ color: {SLATE}; font-size: 1rem; margin: 0.35rem 0 1.1rem 0; max-width: 62rem; }}
-.kpi {{ background: #fff; border: 1px solid #DCE4E8; border-left: 5px solid {TEAL};
-        border-radius: 6px; padding: 0.7rem 0.95rem; height: 100%; }}
-.kpi .v {{ font-size: 1.65rem; font-weight: 700; color: {INK}; line-height: 1.2; }}
-.kpi .l {{ font-size: 0.82rem; color: {SLATE}; font-weight: 500; }}
-.kpi .s {{ font-size: 0.74rem; color: #7F909C; }}
-.kpi.warn {{ border-left-color: {CRIMSON}; }}
-.kpi.gold {{ border-left-color: {AMBER}; }}
-.finding {{ background: #fff; border: 1px solid #DCE4E8; border-radius: 6px;
-            padding: 0.8rem 1rem; margin-bottom: 0.6rem; }}
-.chart-q {{ color: {SLATE}; font-size: 0.9rem; margin: -0.4rem 0 0.4rem 0; }}
-.badge {{ display:inline-block; padding:2px 9px; border-radius: 999px; font-size: .72rem;
-          font-weight:600; background:#E4F1EF; color:{TEAL}; margin-right:6px; }}
-.badge.demo {{ background:#FBEAD0; color:#8A5A00; }}
+.stApp {{ background: linear-gradient(180deg, #EAF4F4 0%, #F5F8F9 28%, #FFFFFF 100%); }}
+.block-container {{ padding-top: 1.2rem; max-width: 1340px; }}
+h1, h2, h3, h4 {{ color: {INK}; letter-spacing: -0.01em; }}
+hr {{ margin: 1.3rem 0; opacity: .25; }}
+
+/* ---- hero ---- */
+.hero {{ position: relative; overflow: hidden; border-radius: 18px; padding: 1.5rem 1.8rem 1.25rem; margin-bottom: 1.1rem;
+         color: #fff; background: linear-gradient(115deg, #0A3F5C 0%, #0B6E79 55%, #2AA198 100%);
+         box-shadow: 0 10px 30px rgba(10,63,92,.25); }}
+.hero::after {{ content: ""; position: absolute; right: -70px; top: -90px; width: 320px; height: 320px; border-radius: 50%;
+                background: radial-gradient(circle, rgba(255,255,255,.25) 0%, rgba(255,255,255,0) 70%); }}
+.hero::before {{ content: ""; position: absolute; right: 120px; bottom: -120px; width: 260px; height: 260px; border-radius: 50%;
+                 background: radial-gradient(circle, rgba(240,163,43,.35) 0%, rgba(240,163,43,0) 70%); }}
+.hero-title {{ font-size: 2.2rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.12; position: relative; z-index: 1; }}
+.hero-sub {{ opacity: .93; max-width: 58rem; margin: .45rem 0 .95rem; font-size: 1.02rem; position: relative; z-index: 1; }}
+.pill {{ display: inline-block; background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.30);
+         padding: 3px 13px; border-radius: 999px; font-size: .78rem; font-weight: 600; margin: 0 8px 4px 0;
+         position: relative; z-index: 1; }}
+.pill.demo {{ background: #F0A32B; color: #3A2500; border-color: #F0A32B; }}
+
+/* ---- KPI cards ---- */
+.kpi {{ --c1: {TEAL}; --c2: #6BBF9E; position: relative; overflow: hidden; display: flex; gap: 12px; align-items: center;
+        background: #fff; border: 1px solid #E3EBEE; border-radius: 14px; padding: .95rem 1rem .85rem 1rem; height: 100%;
+        box-shadow: 0 2px 12px rgba(16,36,47,.08); transition: transform .15s ease, box-shadow .15s ease; }}
+.kpi:hover {{ transform: translateY(-3px); box-shadow: 0 10px 22px rgba(16,36,47,.14); }}
+.kpi::before {{ content: ""; position: absolute; left: 0; top: 0; right: 0; height: 4px;
+                background: linear-gradient(90deg, var(--c1), var(--c2)); }}
+.kpi.gold {{ --c1: {AMBER}; --c2: #F7D58A; }}
+.kpi.warn {{ --c1: {CRIMSON}; --c2: #F08A97; }}
+.kpi.blue {{ --c1: #3D5A80; --c2: #98C1D9; }}
+.kpi .ic {{ flex: 0 0 auto; width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center;
+            justify-content: center; font-size: 1.3rem; background: linear-gradient(135deg, var(--c1), var(--c2)); }}
+.kpi .v {{ font-size: 1.55rem; font-weight: 800; color: {INK}; line-height: 1.15; }}
+.kpi .l {{ font-size: .78rem; color: {SLATE}; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }}
+.kpi .s {{ font-size: .75rem; color: #7F909C; }}
+
+/* ---- charts as cards ---- */
+div[data-testid="stPlotlyChart"] {{ background: #fff; border: 1px solid #E3EBEE; border-radius: 14px;
+                                    padding: 10px 12px; box-shadow: 0 2px 12px rgba(16,36,47,.06); }}
+.ch {{ display: flex; align-items: center; gap: 10px; margin: .3rem 0 .15rem; }}
+.ch .num {{ background: linear-gradient(135deg, {TEAL}, #2AA198); color: #fff; width: 30px; height: 30px; border-radius: 9px;
+            display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: .95rem;
+            box-shadow: 0 3px 8px rgba(11,122,117,.35); }}
+.ch .ttl {{ font-size: 1.22rem; font-weight: 800; color: {INK}; }}
+.chart-q {{ color: {SLATE}; font-size: .9rem; margin: 0 0 .5rem 0; }}
+.sec-title {{ display: flex; align-items: center; gap: 9px; font-size: 1.08rem; font-weight: 800; color: {INK}; margin: .3rem 0 0; }}
+.sec-title::before {{ content: ""; width: 5px; height: 1.15em; border-radius: 3px; background: linear-gradient(180deg, {TEAL}, {AMBER}); }}
+.band {{ display: flex; align-items: center; gap: 12px; margin: 1.6rem 0 .7rem; font-size: .8rem; font-weight: 800;
+         letter-spacing: .12em; text-transform: uppercase; color: {TEAL}; }}
+.band::after {{ content: ""; flex: 1; height: 2px; background: linear-gradient(90deg, rgba(11,122,117,.35), rgba(11,122,117,0)); }}
+.finding {{ background: #fff; border: 1px solid #DCE4E8; border-radius: 10px; padding: .8rem 1rem; margin-bottom: .6rem; }}
+
+/* ---- tabs as pills ---- */
+.stTabs [data-baseweb="tab-list"] {{ gap: 6px; background: #E3EEF0; padding: 6px; border-radius: 14px; }}
+.stTabs [data-baseweb="tab"] {{ height: 42px; padding: 0 18px; border-radius: 10px; font-weight: 700; color: #35505F; background: transparent; }}
+.stTabs [data-baseweb="tab"]:hover {{ background: rgba(255,255,255,.65); }}
+.stTabs [aria-selected="true"] {{ background: linear-gradient(135deg, {TEAL}, #2AA198) !important; color: #fff !important;
+                                  box-shadow: 0 4px 12px rgba(11,122,117,.35); }}
+.stTabs [data-baseweb="tab-highlight"], .stTabs [data-baseweb="tab-border"] {{ display: none; }}
+
+/* ---- sidebar ---- */
+[data-testid="stSidebar"] {{ background: #fff; border-right: 1px solid #E3EBEE; }}
+.brand {{ font-size: 1.25rem; font-weight: 800; background: linear-gradient(90deg, {TEAL}, {AMBER});
+          -webkit-background-clip: text; -webkit-text-fill-color: transparent; }}
+.badge {{ display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: .72rem; font-weight: 700;
+          background: #E4F1EF; color: {TEAL}; margin-right: 6px; }}
+.badge.demo {{ background: #FBEAD0; color: #8A5A00; }}
 </style>
 """,
     unsafe_allow_html=True,
@@ -90,8 +134,10 @@ def money(x: float, short: bool = False) -> str:
     return f"${x:,.0f}"
 
 
-def kpi(label: str, value: str, sub: str = "", tone: str = "") -> str:
-    return f'<div class="kpi {tone}"><div class="l">{label}</div><div class="v">{value}</div><div class="s">{sub}</div></div>'
+def kpi(label: str, value: str, sub: str = "", tone: str = "", icon: str = "") -> str:
+    ic = f'<div class="ic">{icon}</div>' if icon else ""
+    return (f'<div class="kpi {tone}">{ic}<div><div class="l">{label}</div><div class="v">{value}</div>'
+            f'<div class="s">{sub}</div></div></div>')
 
 
 def style(fig: go.Figure, height: int = 430, legend: bool = True) -> go.Figure:
@@ -99,7 +145,7 @@ def style(fig: go.Figure, height: int = 430, legend: bool = True) -> go.Figure:
         height=height, colorway=COLORWAY, font=dict(family="Public Sans, sans-serif", color=INK, size=13),
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=10, r=10, t=20, b=10), showlegend=legend,
-        hoverlabel=dict(font_size=13), legend=dict(title_text=""),
+        hoverlabel=dict(font_size=13, bgcolor="white"), legend=dict(title_text=""),
     )
     fig.update_xaxes(gridcolor="#E6ECEF", zeroline=False)
     fig.update_yaxes(gridcolor="#E6ECEF", zeroline=False)
@@ -107,8 +153,16 @@ def style(fig: go.Figure, height: int = 430, legend: bool = True) -> go.Figure:
 
 
 def chart_header(num: int, title: str, question: str) -> None:
-    st.markdown(f"#### {num}. {title}")
-    st.markdown(f'<div class="chart-q">{question}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="ch"><div class="num">{num}</div><div class="ttl">{title}</div></div>'
+                f'<div class="chart-q">{question}</div>', unsafe_allow_html=True)
+
+
+def sec_head(title: str, sub: str = "") -> None:
+    st.markdown(f'<div class="sec-title">{title}</div><div class="chart-q">{sub}</div>', unsafe_allow_html=True)
+
+
+def band(label: str) -> None:
+    st.markdown(f'<div class="band">{label}</div>', unsafe_allow_html=True)
 
 
 def short_labels(labels: pd.Series, n: int = 52) -> pd.Series:
@@ -195,10 +249,17 @@ df_all, clean_report, src_kind, src_label = get_data()
 # --------------------------------------------------------------------------- #
 # Header
 # --------------------------------------------------------------------------- #
-st.markdown('<p class="mx-title">Hospital Inpatient Discharges</p>', unsafe_allow_html=True)
+_yrs = ""
+if "year" in df_all and df_all["year"].notna().any():
+    _yrs = f'<span class="pill">📅 {int(df_all["year"].min())}–{int(df_all["year"].max())}</span>'
+_demo = '<span class="pill demo">DEMO DATA</span>' if src_kind == "demo" else ""
 st.markdown(
-    '<p class="mx-sub">Where do patients stay longest, which cases drive cost, and where should hospital '
-    "administrators focus? Explore stay length, charges, severity and payers across counties and facilities.</p>",
+    f"""<div class="hero">
+  <div class="hero-title">🏥 Hospital Inpatient Discharges</div>
+  <div class="hero-sub">Where do patients stay longest, which cases drive cost, and where should hospital administrators
+  focus? Explore stay length, charges, severity and payers across counties and facilities.</div>
+  {_demo}<span class="pill">📂 {html.escape(str(src_label))}</span><span class="pill">🧾 {len(df_all):,} cleaned records</span>{_yrs}
+</div>""",
     unsafe_allow_html=True,
 )
 if src_kind == "demo":
@@ -209,7 +270,8 @@ if src_kind == "demo":
 # --------------------------------------------------------------------------- #
 # Sidebar filters
 # --------------------------------------------------------------------------- #
-st.sidebar.markdown("### MediScope Health Analytics")
+st.sidebar.markdown('<div class="brand">🏥 MediScope</div>', unsafe_allow_html=True)
+st.sidebar.markdown("**Health Analytics - filters**")
 st.sidebar.caption("Filters apply to every chart, table and finding.")
 
 
@@ -258,11 +320,11 @@ if len(fdf) == 0:
 # --------------------------------------------------------------------------- #
 K = A.kpis(fdf)
 cols = st.columns(5)
-cols[0].markdown(kpi("Discharges", f"{K['discharges']:,}", f"{K['bed_days']:,.0f} bed-days"), unsafe_allow_html=True)
-cols[1].markdown(kpi("Average stay", f"{K['avg_los']:.1f} days", f"median {K['median_los']:.0f} days"), unsafe_allow_html=True)
-cols[2].markdown(kpi("Average charges", money(K["avg_charges"]), f"median {money(K['median_charges'])}", "gold"), unsafe_allow_html=True)
-cols[3].markdown(kpi("Total charges", money(K["total_charges"], short=True), "billed, before payer discounts", "gold"), unsafe_allow_html=True)
-cols[4].markdown(kpi("Long stays", f"{K['long_stay_pct']:.1f}%", f"stays over {P.LONG_STAY_DAYS} days", "warn"), unsafe_allow_html=True)
+cols[0].markdown(kpi("Discharges", f"{K['discharges']:,}", f"{K['bed_days']:,.0f} bed-days", "blue", "🛏️"), unsafe_allow_html=True)
+cols[1].markdown(kpi("Average stay", f"{K['avg_los']:.1f} days", f"median {K['median_los']:.0f} days", "", "🕒"), unsafe_allow_html=True)
+cols[2].markdown(kpi("Average charges", money(K["avg_charges"]), f"median {money(K['median_charges'])}", "gold", "💵"), unsafe_allow_html=True)
+cols[3].markdown(kpi("Total charges", money(K["total_charges"], short=True), "billed, before payer discounts", "gold", "🧾"), unsafe_allow_html=True)
+cols[4].markdown(kpi("Long stays", f"{K['long_stay_pct']:.1f}%", f"stays over {P.LONG_STAY_DAYS} days", "warn", "⏳"), unsafe_allow_html=True)
 st.write("")
 
 # --------------------------------------------------------------------------- #
@@ -300,8 +362,8 @@ answers = A.answer_questions(fdf, min_cases_default)
 # --------------------------------------------------------------------------- #
 # Tabs
 # --------------------------------------------------------------------------- #
-tab_dash, tab_rq, tab_eda, tab_data, tab_about = st.tabs(
-    ["Dashboard", "Research questions", "Deep dive (EDA)", "Data & cleaning", "About"]
+tab_dash, tab_sec, tab_rq, tab_eda, tab_data, tab_about = st.tabs(
+    ["📊 Dashboard", "📈 Secondary statistics", "❓ Research questions", "🔬 Deep dive (EDA)", "🧹 Data & cleaning", "ℹ️ About"]
 )
 
 # =========================== TAB 1: DASHBOARD =============================== #
@@ -320,7 +382,7 @@ with tab_dash:
         st.info("No diagnosis meets the minimum-case threshold - lower it above.")
     else:
         dx["label_short"] = short_labels(dx["dx_label"])
-        fig = px.bar(dx, x="avg_los", y="label_short", orientation="h", color="long_stay_pct",
+        fig = px.bar(dx, x="avg_los", y="label_short", orientation="h", color="avg_los",
                      color_continuous_scale=SCALE_RISK,
                      custom_data=["dx_label", "cases", "median_los", "long_stay_pct", "avg_charges"])
         fig.update_traces(
@@ -328,11 +390,12 @@ with tab_dash:
             hovertemplate="<b>%{customdata[0]}</b><br>Average stay: %{x:.1f} days<br>Median stay: %{customdata[2]:.0f} days"
                           "<br>Cases: %{customdata[1]:,}<br>Stays > 7 days: %{customdata[3]:.0f}%"
                           "<br>Average charges: $%{customdata[4]:,.0f}<extra></extra>")
-        fig.update_coloraxes(colorbar_title="% stays<br>> 7 days")
+        fig.update_coloraxes(colorbar_title="Avg stay<br>(days)")
         fig.update_xaxes(title="Average length of stay (days)")
         fig.update_yaxes(title="", automargin=True)
         st.plotly_chart(style(fig, height=max(380, 28 * len(dx) + 90), legend=False))
-        st.caption("Bars are ranked by average stay; colour shows the share of stays longer than a week.")
+        st.caption("Bar length and colour both show average stay - the hotter the bar, the longer patients stay. "
+                   "Hover for median, case count and long-stay share.")
 
     st.divider()
 
@@ -430,7 +493,223 @@ with tab_dash:
     st.caption(f"Mean ({ds['mean']:.1f}) sits above the median ({ds['median']:.0f}) and skewness is {ds['skew']:.1f}: "
                f"a minority of very long stays pulls the average up. 95% of stays end within {ds['p95']:.0f} days.")
 
-# ======================= TAB 2: RESEARCH QUESTIONS ========================== #
+# ====================== TAB 2: SECONDARY STATISTICS ========================= #
+with tab_sec:
+    st.markdown("Extra angles on the same filtered discharges: how patients arrive and leave, where the money goes, "
+                "how risk and stay length relate, and how concentrated resource use is.")
+    MORT_ORDER = ["Minor", "Moderate", "Major", "Extreme", "Unknown"]
+    SEV_ORDER_ALL = P.SEVERITY_ORDER + ["Unknown"]
+
+    # ---- mini KPI row -------------------------------------------------------- #
+    mini = []
+    if "ed_indicator" in fdf:
+        ed = fdf["ed_indicator"].astype(str).str.upper().isin(["Y", "YES"]).mean() * 100
+        mini.append(("Via emergency dept.", f"{ed:.0f}%", "of discharges", "warn", "🚑"))
+    if "surgical" in fdf:
+        sg = fdf["surgical"].astype(str).str.contains("Surgical", case=False).mean() * 100
+        mini.append(("Surgical stays", f"{sg:.0f}%", "of discharges", "blue", "🔪"))
+    if "disposition" in fdf:
+        ex = fdf["disposition"].astype(str).str.contains("Expired", case=False).mean() * 100
+        mini.append(("Died in hospital", f"{ex:.1f}%", "disposition = expired", "warn", "🕯️"))
+    mini.append(("Charge per day", money(fdf["charge_per_day"].median()), "median, billed", "gold", "📆"))
+    if "cost_to_charge" in fdf:
+        mini.append(("Cost-to-charge", f"{fdf['cost_to_charge'].median():.2f}", "median ratio", "", "⚖️"))
+    for col, (lab, val, sub, tone, ic) in zip(st.columns(len(mini)), mini):
+        col.markdown(kpi(lab, val, sub, tone, ic), unsafe_allow_html=True)
+
+    # ---- Patient flow ------------------------------------------------------- #
+    band("Patient flow")
+    s1, s2 = st.columns(2)
+    with s1:
+        sec_head("Admission type: volume vs. average stay", "Bars = discharges, line = average stay (days).")
+        if "admission_type" in fdf:
+            adm = fdf.groupby("admission_type", observed=True).agg(
+                discharges=("los", "size"), avg_los=("los", "mean")).reset_index()
+            adm["admission_type"] = adm["admission_type"].astype(str)
+            adm = adm[adm["discharges"] > 0].sort_values("discharges", ascending=False)
+            fig = go.Figure()
+            fig.add_bar(x=adm["admission_type"], y=adm["discharges"], name="Discharges", marker_color=TEAL,
+                        hovertemplate="%{x}<br>%{y:,} discharges<extra></extra>")
+            fig.add_scatter(x=adm["admission_type"], y=adm["avg_los"], name="Avg stay (days)", yaxis="y2",
+                            mode="lines+markers", line=dict(color=CRIMSON, width=3), marker=dict(size=10),
+                            hovertemplate="%{x}<br>%{y:.1f} days<extra></extra>")
+            fig.update_layout(yaxis=dict(title="Discharges"),
+                              yaxis2=dict(title="Average stay (days)", overlaying="y", side="right", showgrid=False),
+                              legend=dict(orientation="h", y=1.14))
+            st.plotly_chart(style(fig, height=380))
+        else:
+            st.info("No admission-type column in this dataset.")
+    with s2:
+        sec_head("Where patients go after discharge", "Top patient dispositions by share of discharges.")
+        if "disposition" in fdf:
+            dsp = fdf["disposition"].astype(str).value_counts().head(10).rename_axis("disposition").reset_index(name="n")
+            dsp["share"] = dsp["n"] / len(fdf) * 100
+            dsp = dsp.iloc[::-1]
+            fig = px.bar(dsp, x="share", y="disposition", orientation="h", color="share",
+                         color_continuous_scale=SCALE_TEAL, custom_data=["n"],
+                         labels={"share": "% of discharges", "disposition": ""})
+            fig.update_traces(texttemplate="%{x:.1f}%", textposition="outside", cliponaxis=False,
+                              hovertemplate="<b>%{y}</b><br>%{x:.1f}% of discharges<br>%{customdata[0]:,} patients<extra></extra>")
+            fig.update_coloraxes(showscale=False)
+            fig.update_yaxes(automargin=True)
+            st.plotly_chart(style(fig, height=380, legend=False))
+        else:
+            st.info("No disposition column in this dataset.")
+
+    s3, s4 = st.columns(2)
+    with s3:
+        sec_head("Stay-length mix by severity", "Share of each severity group's stays falling in each length band.")
+        ct = pd.crosstab(fdf["severity"].astype(str), fdf["los_band"].astype(str), normalize="index") * 100
+        long_ct = ct.reset_index().melt(id_vars="severity", var_name="los_band", value_name="share")
+        fig = px.bar(long_ct, x="severity", y="share", color="los_band", barmode="stack",
+                     color_discrete_sequence=BAND_COLORS,
+                     category_orders={"severity": [x for x in SEV_ORDER_ALL if x in ct.index],
+                                      "los_band": P.LOS_BAND_LABELS},
+                     labels={"share": "% of stays", "severity": "Severity of illness", "los_band": "Stay length"})
+        fig.update_traces(hovertemplate="%{x}<br>%{fullData.name}: %{y:.1f}%<extra></extra>")
+        fig.update_layout(legend=dict(orientation="h", y=-0.22))
+        st.plotly_chart(style(fig, height=400))
+    with s4:
+        sec_head("Severity vs. risk of mortality", "Row %: of patients at each severity, how many fall in each mortality-risk class.")
+        if "mortality_risk" in fdf:
+            mo = pd.crosstab(fdf["severity"].astype(str), fdf["mortality_risk"].astype(str), normalize="index") * 100
+            rows = [x for x in SEV_ORDER_ALL if x in mo.index]
+            cols_ = [x for x in MORT_ORDER if x in mo.columns]
+            fig = px.imshow(mo.loc[rows, cols_], text_auto=".0f", aspect="auto", color_continuous_scale=SCALE_RISK,
+                            labels=dict(x="Risk of mortality", y="Severity of illness", color="% of row"))
+            fig.update_coloraxes(showscale=False)
+            st.plotly_chart(style(fig, height=400, legend=False))
+        else:
+            st.info("No risk-of-mortality column in this dataset.")
+
+    # ---- Money ---------------------------------------------------------------- #
+    band("Where the money goes")
+    sec_head("Total charges by clinical category", "Tile size = total charges; colour = average stay (days). Bigger and hotter = costly and slow.")
+    cat = fdf.groupby("dx_category", observed=True).agg(
+        total_charges=("charges", "sum"), discharges=("los", "size"), avg_los=("los", "mean")).reset_index()
+    cat["dx_category"] = cat["dx_category"].astype(str)
+    cat = cat[cat["discharges"] > 0]
+    fig = px.treemap(cat, path=[px.Constant("All diagnoses"), "dx_category"], values="total_charges",
+                     color="avg_los", color_continuous_scale=SCALE_RISK, custom_data=["discharges", "avg_los"])
+    fig.update_traces(textinfo="label+percent root", root_color="rgba(0,0,0,0)",
+                      hovertemplate="<b>%{label}</b><br>Total charges $%{value:,.0f}<br>%{customdata[0]:,} discharges"
+                                    "<br>Avg stay %{customdata[1]:.1f} days<extra></extra>")
+    fig.update_coloraxes(colorbar_title="Avg stay<br>(days)")
+    st.plotly_chart(style(fig, height=480, legend=False))
+
+    m1, m2 = st.columns(2)
+    with m1:
+        sec_head("Charges vs. costs by payer", "Average billed charges next to average estimated cost (payers with ≥1% of patients).")
+        if "costs" in fdf:
+            py_ = fdf.groupby("payment", observed=True).agg(
+                n=("charges", "size"), avg_charges=("charges", "mean"), avg_costs=("costs", "mean")).reset_index()
+            py_ = py_[py_["n"] / py_["n"].sum() >= 0.01].sort_values("avg_charges", ascending=False)
+            py_["payment"] = py_["payment"].astype(str)
+            py_["ratio"] = py_["avg_costs"] / py_["avg_charges"]
+            fig = go.Figure()
+            fig.add_bar(x=py_["payment"], y=py_["avg_charges"], name="Avg charges", marker_color=AMBER,
+                        customdata=py_["ratio"], hovertemplate="%{x}<br>Charges $%{y:,.0f}<br>Cost-to-charge %{customdata:.2f}<extra></extra>")
+            fig.add_bar(x=py_["payment"], y=py_["avg_costs"], name="Avg costs", marker_color=TEAL,
+                        hovertemplate="%{x}<br>Costs $%{y:,.0f}<extra></extra>")
+            fig.update_layout(barmode="group", legend=dict(orientation="h", y=1.12))
+            fig.update_xaxes(tickangle=-30)
+            fig.update_yaxes(title="US$")
+            st.plotly_chart(style(fig, height=420))
+        else:
+            st.info("No cost column in this dataset.")
+    with m2:
+        sec_head("Daily billing intensity by clinical category", "Median charge per hospital day - which care is priciest per day?")
+        cpd = fdf.groupby("dx_category", observed=True).agg(
+            n=("charge_per_day", "size"), median_cpd=("charge_per_day", "median")).reset_index()
+        cpd = cpd[cpd["n"] >= 30].sort_values("median_cpd", ascending=False).head(12).iloc[::-1]
+        cpd["dx_category"] = cpd["dx_category"].astype(str)
+        fig = px.bar(cpd, x="median_cpd", y="dx_category", orientation="h", color="median_cpd",
+                     color_continuous_scale=SCALE_RISK, custom_data=["n"],
+                     labels={"median_cpd": "Median charge per day (US$)", "dx_category": ""})
+        fig.update_traces(texttemplate="$%{x:,.0f}", textposition="outside", cliponaxis=False,
+                          hovertemplate="<b>%{y}</b><br>$%{x:,.0f} per day<br>%{customdata[0]:,} discharges<extra></extra>")
+        fig.update_coloraxes(showscale=False)
+        fig.update_yaxes(automargin=True)
+        st.plotly_chart(style(fig, height=420, legend=False))
+
+    sec_head("Top 10 diagnoses by total charges", "The conditions that add up to the biggest share of the bill.")
+    td = fdf.groupby("dx_label", observed=True).agg(
+        total=("charges", "sum"), n=("los", "size"), avg_los=("los", "mean")).reset_index()
+    td = td.sort_values("total", ascending=False).head(10).iloc[::-1].copy()
+    td["label_short"] = short_labels(td["dx_label"], 60)
+    fig = px.bar(td, x="total", y="label_short", orientation="h", color="total", color_continuous_scale=SCALE_TEAL,
+                 custom_data=["dx_label", "n", "avg_los"], labels={"total": "Total charges (US$)", "label_short": ""})
+    fig.update_traces(texttemplate="%{x:$.3s}", textposition="outside", cliponaxis=False,
+                      hovertemplate="<b>%{customdata[0]}</b><br>Total $%{x:,.0f}<br>%{customdata[1]:,} discharges"
+                                    "<br>Avg stay %{customdata[2]:.1f} days<extra></extra>")
+    fig.update_coloraxes(showscale=False)
+    fig.update_yaxes(automargin=True)
+    st.plotly_chart(style(fig, height=440, legend=False))
+
+    # ---- Concentration & demographics ---------------------------------------- #
+    band("Concentration & patient mix")
+    c1_, c2_ = st.columns(2)
+    with c1_:
+        sec_head("How concentrated are charges?", "Cumulative share of total charges, patients ranked from most to least expensive.")
+        srt = np.sort(fdf["charges"].to_numpy())[::-1]
+        cum = np.cumsum(srt) / srt.sum() * 100
+        idx = np.unique(np.linspace(0, len(srt) - 1, 400).astype(int))
+        xs, ys = (idx + 1) / len(srt) * 100, cum[idx]
+        k10 = max(1, int(len(srt) * 0.10))
+        top10 = float(cum[k10 - 1])
+        fig = go.Figure()
+        fig.add_scatter(x=[0, 100], y=[0, 100], mode="lines", name="Perfect equality",
+                        line=dict(color="#9AA7B0", dash="dash"), hoverinfo="skip")
+        fig.add_scatter(x=xs, y=ys, mode="lines", name="Actual charges", fill="tozeroy",
+                        line=dict(color=CRIMSON, width=3), fillcolor="rgba(209,73,91,.15)",
+                        hovertemplate="Top %{x:.0f}% of discharges<br>= %{y:.0f}% of charges<extra></extra>")
+        fig.add_scatter(x=[10], y=[top10], mode="markers+text", name="Top 10%", marker=dict(size=12, color=INK),
+                        text=[f"Top 10% → {top10:.0f}% of charges"], textposition="bottom right", showlegend=False,
+                        hoverinfo="skip")
+        fig.update_xaxes(title="% of discharges (most expensive first)", range=[0, 100])
+        fig.update_yaxes(title="% of total charges", range=[0, 100])
+        fig.update_layout(legend=dict(orientation="h", y=1.12))
+        st.plotly_chart(style(fig, height=400))
+    with c2_:
+        sec_head("Stay length by age group", "Box plots on a log axis (box = middle 50%, line = median, dashed = mean).")
+        smp = fdf.sample(min(len(fdf), 80_000), random_state=3)
+        order = [a for a in P.AGE_ORDER if a in set(smp["age_group"].astype(str))]
+        order += sorted(set(smp["age_group"].astype(str)) - set(order))
+        fig = px.box(smp, x="age_group", y="los", color="age_group", log_y=True, points=False,
+                     category_orders={"age_group": order}, color_discrete_sequence=AGE_COLORS,
+                     labels={"age_group": "Age group", "los": "Length of stay (days, log)"})
+        fig.update_traces(boxmean=True)
+        st.plotly_chart(style(fig, height=400, legend=False))
+
+    c3_, c4_ = st.columns(2)
+    with c3_:
+        sec_head("Admission type mix by age group", "Share (%) of each age group's discharges by how they were admitted.")
+        if "admission_type" in fdf:
+            am = pd.crosstab(fdf["age_group"].astype(str), fdf["admission_type"].astype(str), normalize="index") * 100
+            am_long = am.reset_index().melt(id_vars="age_group", var_name="admission_type", value_name="share")
+            fig = px.bar(am_long, x="age_group", y="share", color="admission_type", barmode="stack",
+                         color_discrete_sequence=COLORWAY, category_orders={"age_group": order},
+                         labels={"share": "% of discharges", "age_group": "Age group", "admission_type": "Admission"})
+            fig.update_traces(hovertemplate="%{x}<br>%{fullData.name}: %{y:.1f}%<extra></extra>")
+            fig.update_layout(legend=dict(orientation="h", y=-0.22))
+            st.plotly_chart(style(fig, height=400))
+        else:
+            st.info("No admission-type column in this dataset.")
+    with c4_:
+        sec_head("Who are the patients?", "Inner ring = age group, outer ring = gender. Click a slice to zoom in.")
+        if "gender" in fdf:
+            sb = fdf.groupby(["age_group", "gender"], observed=True).size().reset_index(name="n")
+            sb = sb[sb["n"] > 0]
+            sb["age_group"], sb["gender"] = sb["age_group"].astype(str), sb["gender"].astype(str)
+            fig = px.sunburst(sb, path=["age_group", "gender"], values="n", color="age_group",
+                              color_discrete_sequence=AGE_COLORS)
+            fig.update_traces(textinfo="label+percent parent",
+                              hovertemplate="<b>%{label}</b><br>%{value:,} discharges<extra></extra>")
+            st.plotly_chart(style(fig, height=400, legend=False))
+        else:
+            st.info("No gender column in this dataset.")
+
+# ======================= TAB 3: RESEARCH QUESTIONS ========================== #
 with tab_rq:
     st.markdown("Six questions frame the analysis. Each finding below is **computed live from the current filters**, "
                 "so it will change as you slice the data.")
@@ -509,7 +788,7 @@ with tab_rq:
         "target improvement programmes there first."
     )
 
-# ============================ TAB 3: DEEP DIVE ============================== #
+# ============================ TAB 4: DEEP DIVE ============================== #
 with tab_eda:
     st.markdown("Exploratory analysis behind the dashboard: distributions, group comparisons and pivot tables.")
 
@@ -589,13 +868,14 @@ with tab_eda:
         st.markdown("#### High-utilisation facilities (bed-days)")
         nfac = st.slider("Facilities to show", 5, 25, 12, key="fac_n")
         fu = A.facility_utilization(fdf, nfac).iloc[::-1]
-        fig = px.bar(fu, x="bed_days", y="facility", orientation="h", color="avg_los", color_continuous_scale=SCALE_RISK,
+        fig = px.bar(fu, x="bed_days", y="facility", orientation="h", color="bed_days", color_continuous_scale=SCALE_RISK,
                      custom_data=["discharges", "avg_los", "county", "total_charges"],
                      labels={"bed_days": "Bed-days (sum of stay length)", "facility": "", "avg_los": "Avg stay (d)"})
         fig.update_traces(hovertemplate="<b>%{y}</b> (%{customdata[2]})<br>Bed-days %{x:,.0f}"
                                         "<br>Discharges %{customdata[0]:,}<br>Avg stay %{customdata[1]:.1f} d"
                                         "<br>Charges $%{customdata[3]:,.0f}<extra></extra>")
         fig.update_yaxes(automargin=True)
+        fig.update_coloraxes(showscale=False)
         st.plotly_chart(style(fig, height=max(340, 26 * len(fu) + 80), legend=False))
 
     st.divider()
@@ -633,7 +913,7 @@ with tab_eda:
         fig.update_xaxes(dtick=1)
         t2.plotly_chart(style(fig, height=300, legend=False))
 
-# ========================= TAB 4: DATA & CLEANING =========================== #
+# ========================= TAB 5: DATA & CLEANING =========================== #
 with tab_data:
     badge = ('<span class="badge demo">DEMO DATA</span>' if src_kind == "demo"
              else f'<span class="badge">{src_kind.upper()}</span>')
@@ -694,7 +974,7 @@ with tab_data:
     ], columns=["Field", "Meaning"])
     st.dataframe(dd, hide_index=True)
 
-# ============================== TAB 5: ABOUT ================================ #
+# ============================== TAB 6: ABOUT ================================ #
 with tab_about:
     st.markdown(
         """
