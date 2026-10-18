@@ -14,7 +14,7 @@
 | **CRS Facilitator** | Syed Ali Beema |
 | **Assessment** | Summative Assessment, Scenario 2: Hospital Inpatient Discharges Dashboard |
 
-![Dashboard overview](screenshots/01_dashboard.png)
+![Dashboard overview](IADAI201-AJeyaditya-1000406_AIY2_Mathematics_for_AI_II_SA/screenshots/01_dashboard.png)
 
 ---
 
@@ -50,15 +50,15 @@ The app has six tabs:
 A sidebar of filters (year, service area, county, facility, age, gender, severity, payer, admission type, length of stay,
 and an outlier switch) controls **every** chart, KPI and written finding at once.
 
-### Screenshots
+### IADAI201-AJeyaditya-1000406_AIY2_Mathematics_for_AI_II_SA/screenshots
 
 | Dashboard | Secondary statistics | Research questions |
 | --- | --- | --- |
-| ![](screenshots/01_dashboard.png) | ![](screenshots/02_secondary.png) | ![](screenshots/03_research.png) |
+| ![](IADAI201-AJeyaditya-1000406_AIY2_Mathematics_for_AI_II_SA/screenshots/01_dashboard.png) | ![](IADAI201-AJeyaditya-1000406_AIY2_Mathematics_for_AI_II_SA/screenshots/02_secondary.png) | ![](IADAI201-AJeyaditya-1000406_AIY2_Mathematics_for_AI_II_SA/screenshots/03_research.png) |
 
 | Heat-map | Deep dive | Data & cleaning |
 | --- | --- | --- |
-| ![](screenshots/04_heatmap.png) | ![](screenshots/05_deep_dive.png) | ![](screenshots/06_data_cleaning.png) |
+| ![](IADAI201-AJeyaditya-1000406_AIY2_Mathematics_for_AI_II_SA/screenshots/04_heatmap.png) | ![](IADAI201-AJeyaditya-1000406_AIY2_Mathematics_for_AI_II_SA/screenshots/05_deep_dive.png) | ![](IADAI201-AJeyaditya-1000406_AIY2_Mathematics_for_AI_II_SA/screenshots/06_data_cleaning.png) |
 
 ---
 
@@ -263,7 +263,7 @@ streamlit run app.py
 │   ├── clean_meta.json
 │   └── README.md
 ├── tests/test_pipeline.py
-├── screenshots/                 # images used in this README
+├── IADAI201-AJeyaditya-1000406_AIY2_Mathematics_for_AI_II_SA/screenshots/                 # images used in this README
 └── docs/research_notes.md       # background research and design decisions
 ```
 
