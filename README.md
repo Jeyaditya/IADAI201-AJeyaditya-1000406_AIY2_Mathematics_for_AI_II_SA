@@ -1,8 +1,6 @@
 # 🏥 Hospital Inpatient Discharges Dashboard
 
-*Turning a mountain of hospital discharge records into answers that hospital administrators can act on.*
-
-### 👉 [Open the live dashboard](https://iadai201-ajeyaditya-1000406-aiy2-mathematics-for-ai-ii-sa.streamlit.app/)
+### [Open the live dashboard](https://iadai201-ajeyaditya-1000406-aiy2-mathematics-for-ai-ii-sa.streamlit.app/)
 
 | | |
 | --- | --- |
